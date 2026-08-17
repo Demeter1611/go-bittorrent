@@ -11,14 +11,14 @@ type TorrentFile struct {
 	Announce    string
 	InfoHash    [20]byte
 	PieceHashes [][20]byte
-	PieceLength int
-	Length      int
+	PieceLength int64
+	Length      int64
 	Name        string
 	Files       []File
 }
 
 type File struct {
-	Length int
+	Length int64
 	Path   []string
 }
 
@@ -62,7 +62,7 @@ func parseTorrentFile(dict map[string]any) (*TorrentFile, error) {
 		return nil, fmt.Errorf("invalid 'name'")
 	}
 
-	pieceLength, ok := infoDict["piece length"].(int)
+	pieceLength, ok := infoDict["piece length"].(int64)
 	if !ok {
 		return nil, fmt.Errorf("invalid 'piece length'")
 	}
@@ -90,7 +90,7 @@ func parseTorrentFile(dict map[string]any) (*TorrentFile, error) {
 		Name:        name,
 	}
 
-	if length, ok := infoDict["length"].(int); ok {
+	if length, ok := infoDict["length"].(int64); ok {
 		torrentFile.Length = length
 	} else if filesRaw, ok := infoDict["files"].([]any); ok {
 		files, err := parseFiles(filesRaw)
@@ -138,7 +138,7 @@ func parseFiles(filesRaw []any) ([]File, error) {
 			return nil, fmt.Errorf("invalid file")
 		}
 
-		length, ok := fDict["length"].(int)
+		length, ok := fDict["length"].(int64)
 		if !ok {
 			return nil, fmt.Errorf("invalid file length")
 		}

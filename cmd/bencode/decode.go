@@ -18,13 +18,13 @@ func Decode(file io.Reader) (any, error) {
 	return val, nil
 }
 
-func decodeInt(reader *bufio.Reader) (int, error) {
+func decodeInt(reader *bufio.Reader) (int64, error) {
 	str, err := reader.ReadString('e')
 	if err != nil {
 		return 0, err
 	}
 
-	number, err := strconv.Atoi(str[:len(str)-1])
+	number, err := strconv.ParseInt(str[:len(str)-1], 10, 64)
 	if err != nil {
 		return 0, err
 	}

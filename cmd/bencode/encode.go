@@ -17,9 +17,9 @@ func Encode(value any) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func encodeInt(value int, buffer *bytes.Buffer) error {
+func encodeInt(value int64, buffer *bytes.Buffer) error {
 	buffer.WriteString("i")
-	buffer.WriteString(strconv.Itoa(value))
+	buffer.WriteString(strconv.FormatInt(value, 10))
 	buffer.WriteString("e")
 
 	return nil
@@ -73,7 +73,7 @@ func encodeDictionary(value map[string]any, buffer *bytes.Buffer) error {
 
 func encodeValue(value any, buffer *bytes.Buffer) error {
 	switch v := value.(type) {
-	case int:
+	case int64:
 		return encodeInt(v, buffer)
 	case string:
 		return encodeString(v, buffer)
