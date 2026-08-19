@@ -162,3 +162,15 @@ func parseFiles(filesRaw []any) ([]File, error) {
 
 	return files, nil
 }
+
+func (t *TorrentFile) TotalFileSize() int64 {
+	if len(t.Files) == 0 {
+		return t.Length
+	}
+
+	var totalLength int64 = 0
+	for _, file := range t.Files {
+		totalLength += file.Length
+	}
+	return totalLength
+}
