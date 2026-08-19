@@ -3,7 +3,7 @@ package torrentfile
 import (
 	"crypto/sha1"
 	"fmt"
-	"go-bittorrent/cmd/bencode"
+	"go-bittorrent/bencode"
 	"os"
 )
 

@@ -4,18 +4,14 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"go-bittorrent/cmd/bencode"
-	torrentfile "go-bittorrent/cmd/torrent-file"
+	"go-bittorrent/bencode"
+	"go-bittorrent/p2p"
+	torrentfile "go-bittorrent/torrent-file"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 )
-
-type Peer struct {
-	IP   net.IP
-	Port uint16
-}
 
 func GeneratePeerId() ([20]byte, error) {
 	peerId := [20]byte{}
@@ -47,7 +43,7 @@ func buildTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, 
 	return base.String(), nil
 }
 
-func SendTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, port uint16) ([]Peer, error) {
+func SendTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, port uint16) ([]p2p.Peer, error) {
 	trackerUrl, err := buildTrackerRequest(torrentFile, peerId, port)
 	if err != nil {
 		fmt.Println(err)
@@ -95,8 +91,8 @@ func SendTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, p
 	return peersList, nil
 }
 
-func parsePeers(peersValue any) ([]Peer, error) {
-	var peers []Peer
+func parsePeers(peersValue any) ([]p2p.Peer, error) {
+	var peers []p2p.Peer
 
 	switch v := peersValue.(type) {
 	case string:
@@ -110,7 +106,7 @@ func parsePeers(peersValue any) ([]Peer, error) {
 			offset := i * peerSize
 			ip := net.IP([]byte(v[offset : offset+4]))
 			port := binary.BigEndian.Uint16([]byte(v[offset+4 : offset+6]))
-			peers = append(peers, Peer{IP: ip, Port: port})
+			peers = append(peers, p2p.Peer{IP: ip, Port: port})
 		}
 
 	case []any:
@@ -124,7 +120,7 @@ func parsePeers(peersValue any) ([]Peer, error) {
 			portInt, portOk := peerDict["port"].(int64)
 
 			if ipOk && portOk {
-				peers = append(peers, Peer{IP: net.ParseIP(ipString), Port: uint16(portInt)})
+				peers = append(peers, p2p.Peer{IP: net.ParseIP(ipString), Port: uint16(portInt)})
 			}
 		}
 

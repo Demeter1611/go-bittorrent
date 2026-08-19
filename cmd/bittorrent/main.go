@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	torrentfile "go-bittorrent/cmd/torrent-file"
-	"go-bittorrent/cmd/tracker"
+	"go-bittorrent/p2p"
+	torrentfile "go-bittorrent/torrent-file"
+	"go-bittorrent/tracker"
 )
 
 func main() {
@@ -18,5 +19,19 @@ func main() {
 		fmt.Print(err)
 		return
 	}
-	tracker.SendTrackerRequest(tf, peerId, 6881)
+
+	peers, err := tracker.SendTrackerRequest(tf, peerId, 6881)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, peer := range peers {
+		conn, err := p2p.OpenConnection(peer, tf.InfoHash, peerId)
+		if err != nil {
+			fmt.Printf("failed with %s: %v\n", peer.IP, err)
+			continue
+		}
+		fmt.Printf("handshake OK with %s\n", peer.IP)
+		conn.Close()
+	}
 }
