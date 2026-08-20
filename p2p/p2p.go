@@ -13,7 +13,7 @@ type Peer struct {
 	Port uint16
 }
 
-func OpenConnection(peer Peer, infoHash [20]byte, peerId [20]byte) (net.Conn, error) {
+func Connection(peer Peer, infoHash [20]byte, peerId [20]byte) (net.Conn, error) {
 	portStr := strconv.Itoa(int(peer.Port))
 
 	address := net.JoinHostPort(peer.IP.String(), portStr)
@@ -24,13 +24,25 @@ func OpenConnection(peer Peer, infoHash [20]byte, peerId [20]byte) (net.Conn, er
 	}
 
 	_, err = Handshake(conn, infoHash, peerId)
-
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 
-	return conn, nil
+	state := &PeerState{
+		Conn:    conn,
+		Chocked: true,
+	}
+
+	for {
+		msg, err := readMessage(conn)
+		if err != nil {
+			return conn, err
+		}
+
+		state.handleMessage(msg)
+	}
+
 }
 
 func Handshake(conn net.Conn, infoHash [20]byte, peerId [20]byte) ([20]byte, error) {
