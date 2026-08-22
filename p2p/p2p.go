@@ -33,7 +33,7 @@ func Connection(peer Peer, infoHash [20]byte, peerId [20]byte, torrentFile *torr
 
 	state := &PeerState{
 		Conn:    conn,
-		Chocked: true,
+		Choked:  true,
 		Torrent: torrentFile,
 		Storage: torrentStorage,
 	}
