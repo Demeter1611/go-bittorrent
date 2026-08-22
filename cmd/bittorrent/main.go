@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	tf, err := torrentfile.Open(`C:\vscode\go-bittorrent\test-torrents\enwiki-20260601-pages-articles-multistream.xml.bz2-bac5df1f39fd83fc87826a8dc546e56db34f2322.torrent`)
+	tf, err := torrentfile.Open(`C:\vscode\go-bittorrent\test-torrents\ubuntu-26.04-desktop-amd64.iso.torrent`)
 	if err != nil {
 		fmt.Print(err)
 		return
@@ -26,7 +26,7 @@ func main() {
 	}
 
 	for _, peer := range peers {
-		conn, err := p2p.Connection(peer, tf.InfoHash, peerId)
+		conn, err := p2p.Connection(peer, tf.InfoHash, peerId, tf)
 		if err != nil {
 			fmt.Printf("failed with %s: %v\n", peer.IP, err)
 			continue

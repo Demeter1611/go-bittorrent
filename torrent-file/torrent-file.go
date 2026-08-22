@@ -174,3 +174,17 @@ func (t *TorrentFile) TotalFileSize() int64 {
 	}
 	return totalLength
 }
+
+func (t *TorrentFile) PieceSize(index uint32) int64 {
+	totalSize := t.TotalFileSize()
+
+	begin := int64(index) * t.PieceLength
+
+	remaining := totalSize - int64(begin)
+
+	if remaining > t.PieceLength {
+		return t.PieceLength
+	}
+
+	return remaining
+}

@@ -37,3 +37,34 @@ func readMessage(conn net.Conn) (*Message, error) {
 
 	return &message, nil
 }
+
+func Serialize(msg *Message) []byte {
+	if msg == nil {
+		return make([]byte, 4)
+	}
+	msgLength := uint32(1 + len(msg.Payload))
+
+	buffer := make([]byte, msgLength+4)
+
+	binary.BigEndian.PutUint32(buffer[0:4], msgLength)
+
+	buffer[4] = msg.ID
+
+	if len(msg.Payload) > 0 {
+		copy(buffer[5:], msg.Payload)
+	}
+
+	return buffer
+}
+
+func buildRequestPayload(index uint32, begin uint32, length uint32) []byte {
+	buffer := make([]byte, 12)
+
+	binary.BigEndian.PutUint32(buffer[0:4], index)
+
+	binary.BigEndian.PutUint32(buffer[4:8], begin)
+
+	binary.BigEndian.PutUint32(buffer[8:12], length)
+
+	return buffer
+}
