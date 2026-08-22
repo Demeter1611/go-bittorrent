@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go-bittorrent/p2p"
+	"go-bittorrent/storage"
 	torrentfile "go-bittorrent/torrent-file"
 	"go-bittorrent/tracker"
 )
@@ -25,8 +26,15 @@ func main() {
 		fmt.Println(err)
 	}
 
+	ts, err := storage.NewTorrentStorage(tf)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer ts.Destroy()
+
 	for _, peer := range peers {
-		conn, err := p2p.Connection(peer, tf.InfoHash, peerId, tf)
+		conn, err := p2p.Connection(peer, tf.InfoHash, peerId, tf, ts)
 		if err != nil {
 			fmt.Printf("failed with %s: %v\n", peer.IP, err)
 			continue

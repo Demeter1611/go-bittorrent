@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"go-bittorrent/storage"
 	torrentfile "go-bittorrent/torrent-file"
 	"io"
 	"net"
@@ -14,7 +15,7 @@ type Peer struct {
 	Port uint16
 }
 
-func Connection(peer Peer, infoHash [20]byte, peerId [20]byte, torrentFile *torrentfile.TorrentFile) (net.Conn, error) {
+func Connection(peer Peer, infoHash [20]byte, peerId [20]byte, torrentFile *torrentfile.TorrentFile, torrentStorage *storage.TorrentStorage) (net.Conn, error) {
 	portStr := strconv.Itoa(int(peer.Port))
 
 	address := net.JoinHostPort(peer.IP.String(), portStr)
@@ -34,8 +35,9 @@ func Connection(peer Peer, infoHash [20]byte, peerId [20]byte, torrentFile *torr
 		Conn:    conn,
 		Chocked: true,
 		Torrent: torrentFile,
+		Storage: torrentStorage,
 	}
-
+	//separa loop-ul asta de run intr-o functie diferita
 	for {
 		msg, err := readMessage(conn)
 		if err != nil {

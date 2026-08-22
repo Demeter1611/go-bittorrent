@@ -1,16 +1,20 @@
 package p2p
 
 import (
+	"encoding/binary"
 	"fmt"
+	"go-bittorrent/storage"
 	torrentfile "go-bittorrent/torrent-file"
 	"net"
 )
 
 type PeerState struct {
-	Conn     net.Conn
-	Chocked  bool
-	Bitfield []byte
-	Torrent  *torrentfile.TorrentFile
+	Conn          net.Conn
+	Choked        bool
+	Bitfield      []byte
+	Torrent       *torrentfile.TorrentFile
+	Storage       *storage.TorrentStorage
+	CurrentBuffer *PieceBuffer
 }
 
 func (p *PeerState) HandleMessage(msg *Message) {
@@ -38,6 +42,7 @@ func (p *PeerState) HandleMessage(msg *Message) {
 		fmt.Println("request")
 	case 7:
 		fmt.Println("piece")
+		p.handlePiece(msg)
 	case 8:
 		fmt.Println("cancel")
 	}
@@ -55,11 +60,19 @@ func (p *PeerState) SendMessage(msg *Message) error {
 }
 
 func (p *PeerState) handleChoke() {
-	p.Chocked = true
+	p.Choked = true
 }
 
 func (p *PeerState) handleUnchoke() {
-	p.Chocked = false
+	p.Choked = false
+
+	pieceIndex := uint32(0)
+
+	pieceSize := p.Torrent.PieceSize(pieceIndex)
+
+	p.CurrentBuffer = NewPieceBuffer(pieceIndex, uint32(pieceSize))
+
+	p.requestPiece(pieceIndex, uint32(pieceSize))
 }
 
 func (p *PeerState) handleBitfield(msg *Message) {
@@ -72,7 +85,47 @@ func (p *PeerState) handleBitfield(msg *Message) {
 }
 
 func (p *PeerState) handlePiece(msg *Message) {
+	if p.CurrentBuffer == nil {
+		return
+	}
+	if len(msg.Payload) < 8 {
+		return
+	}
 
+	index := binary.BigEndian.Uint32(msg.Payload[0:4])
+	begin := binary.BigEndian.Uint32(msg.Payload[4:8])
+	block := msg.Payload[8:]
+
+	if index != p.CurrentBuffer.Index {
+		return
+	}
+
+	err := p.CurrentBuffer.AddBlock(begin, block)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if p.CurrentBuffer.IsDone() {
+		expectedHash := p.Torrent.PieceHashes[index]
+
+		if !p.CurrentBuffer.Verify(expectedHash) {
+			p.CurrentBuffer = nil
+			fmt.Println("corrupted data")
+		} else {
+			globalOffset := int64(index) * p.Torrent.PieceLength
+
+			err := p.Storage.WriteGlobal(p.CurrentBuffer.Buffer, globalOffset)
+
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println("Piece succesfully written")
+			}
+		}
+
+		p.CurrentBuffer = nil
+	}
 }
 
 func (p *PeerState) requestPiece(index uint32, pieceSize uint32) {
