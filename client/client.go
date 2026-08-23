@@ -90,4 +90,20 @@ func (c *TorrentClient) markPieceComplete() {
 		}
 	}
 	c.mu.Unlock()
+	c.computeProgress()
+}
+
+func (c *TorrentClient) computeProgress() {
+	c.mu.Lock()
+	completed := c.completedPieces
+	total := c.totalPieces
+	c.mu.Unlock()
+
+	if total == 0 {
+		return
+	}
+
+	progress := (float32(completed) / float32(total)) * 100.0
+
+	fmt.Printf("\rProgress: %.2f%% (%d / %d piese)", progress, completed, total)
 }
