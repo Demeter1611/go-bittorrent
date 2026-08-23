@@ -8,6 +8,12 @@ import (
 	"net"
 )
 
+type PieceWork struct {
+	Index  uint32
+	Length uint32
+	Hash   [20]byte
+}
+
 type PeerState struct {
 	Conn          net.Conn
 	Choked        bool
@@ -15,6 +21,18 @@ type PeerState struct {
 	Torrent       *torrentfile.TorrentFile
 	Storage       *storage.TorrentStorage
 	CurrentBuffer *PieceBuffer
+	WorkQueue     chan *PieceWork
+}
+
+func (p *PeerState) RunEventLoop() error {
+	for {
+		msg, err := readMessage(p.Conn)
+		if err != nil {
+			return err
+		}
+
+		p.HandleMessage(msg)
+	}
 }
 
 func (p *PeerState) HandleMessage(msg *Message) {
@@ -66,13 +84,7 @@ func (p *PeerState) handleChoke() {
 func (p *PeerState) handleUnchoke() {
 	p.Choked = false
 
-	pieceIndex := uint32(0)
-
-	pieceSize := p.Torrent.PieceSize(pieceIndex)
-
-	p.CurrentBuffer = NewPieceBuffer(pieceIndex, uint32(pieceSize))
-
-	p.requestPiece(pieceIndex, uint32(pieceSize))
+	p.startNextPiece()
 }
 
 func (p *PeerState) handleBitfield(msg *Message) {
@@ -110,14 +122,17 @@ func (p *PeerState) handlePiece(msg *Message) {
 		expectedHash := p.Torrent.PieceHashes[index]
 
 		if !p.CurrentBuffer.Verify(expectedHash) {
+			p.WorkQueue <- &PieceWork{Index: index, Length: uint32(len(p.CurrentBuffer.Buffer)), Hash: expectedHash}
 			p.CurrentBuffer = nil
 			fmt.Println("corrupted data")
+			return
 		} else {
 			globalOffset := int64(index) * p.Torrent.PieceLength
 
 			err := p.Storage.WriteGlobal(p.CurrentBuffer.Buffer, globalOffset)
 
 			if err != nil {
+				p.WorkQueue <- &PieceWork{Index: index, Length: uint32(len(p.CurrentBuffer.Buffer)), Hash: expectedHash}
 				fmt.Println(err)
 			} else {
 				fmt.Println("Piece succesfully written")
@@ -125,7 +140,48 @@ func (p *PeerState) handlePiece(msg *Message) {
 		}
 
 		p.CurrentBuffer = nil
+		p.startNextPiece()
 	}
+}
+
+func (p *PeerState) startNextPiece() {
+	attempts := 0
+	maxAttempts := len(p.Torrent.PieceHashes)
+
+	for attempts < maxAttempts {
+		select {
+		case piece, ok := <-p.WorkQueue:
+			if !ok {
+				return
+			}
+
+			if !p.HasPiece(piece.Index) {
+				p.WorkQueue <- piece
+				attempts++
+				continue
+			}
+
+			p.CurrentBuffer = NewPieceBuffer(piece.Index, piece.Length)
+			p.requestPiece(piece.Index, piece.Length)
+			return
+		default:
+			return
+		}
+	}
+}
+
+func (p *PeerState) HasPiece(index uint32) bool {
+	byteIndex := index / 8
+
+	bitOffset := index % 8
+
+	if byteIndex >= uint32(len(p.Bitfield)) {
+		return false
+	}
+
+	mask := byte(1 << (7 - bitOffset))
+
+	return p.Bitfield[byteIndex]&mask != 0
 }
 
 func (p *PeerState) requestPiece(index uint32, pieceSize uint32) {

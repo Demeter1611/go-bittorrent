@@ -15,7 +15,7 @@ type Peer struct {
 	Port uint16
 }
 
-func Connection(peer Peer, infoHash [20]byte, peerId [20]byte, torrentFile *torrentfile.TorrentFile, torrentStorage *storage.TorrentStorage) (net.Conn, error) {
+func Connection(peer Peer, peerId [20]byte, torrentFile *torrentfile.TorrentFile, torrentStorage *storage.TorrentStorage, workQueue chan *PieceWork) (*PeerState, error) {
 	portStr := strconv.Itoa(int(peer.Port))
 
 	address := net.JoinHostPort(peer.IP.String(), portStr)
@@ -25,28 +25,21 @@ func Connection(peer Peer, infoHash [20]byte, peerId [20]byte, torrentFile *torr
 		return nil, fmt.Errorf("connection failed: %v", err)
 	}
 
-	_, err = Handshake(conn, infoHash, peerId)
+	_, err = Handshake(conn, torrentFile.InfoHash, peerId)
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 
 	state := &PeerState{
-		Conn:    conn,
-		Choked:  true,
-		Torrent: torrentFile,
-		Storage: torrentStorage,
-	}
-	//separa loop-ul asta de run intr-o functie diferita
-	for {
-		msg, err := readMessage(conn)
-		if err != nil {
-			return conn, err
-		}
-
-		state.HandleMessage(msg)
+		Conn:      conn,
+		Choked:    true,
+		Torrent:   torrentFile,
+		Storage:   torrentStorage,
+		WorkQueue: workQueue,
 	}
 
+	return state, nil
 }
 
 func Handshake(conn net.Conn, infoHash [20]byte, peerId [20]byte) ([20]byte, error) {
