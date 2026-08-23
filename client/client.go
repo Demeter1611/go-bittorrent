@@ -5,16 +5,21 @@ import (
 	"go-bittorrent/p2p"
 	"go-bittorrent/storage"
 	torrentfile "go-bittorrent/torrent-file"
+	"net"
 	"sync"
 )
 
 type TorrentClient struct {
-	Torrent   *torrentfile.TorrentFile
-	Storage   *storage.TorrentStorage
-	PeerId    [20]byte
-	Peers     []p2p.Peer
-	WorkQueue chan *p2p.PieceWork
-	wg        sync.WaitGroup
+	Torrent           *torrentfile.TorrentFile
+	Storage           *storage.TorrentStorage
+	PeerId            [20]byte
+	Peers             []p2p.Peer
+	WorkQueue         chan *p2p.PieceWork
+	activeConnections []net.Conn
+	completedPieces   uint32
+	totalPieces       uint32
+	mu                sync.Mutex
+	wg                sync.WaitGroup
 }
 
 func (c *TorrentClient) Download() {
@@ -35,6 +40,9 @@ func (c *TorrentClient) Download() {
 
 func (c *TorrentClient) initWorkQueue() {
 	numOfPieces := uint32(len(c.Torrent.PieceHashes))
+	c.totalPieces = numOfPieces
+	c.completedPieces = 0
+
 	c.WorkQueue = make(chan *p2p.PieceWork, numOfPieces)
 
 	for index := uint32(0); index < numOfPieces; index++ {
@@ -51,7 +59,13 @@ func (c *TorrentClient) startWorker(peer p2p.Peer) error {
 	if err != nil {
 		return err
 	}
+	c.mu.Lock()
+	c.activeConnections = append(c.activeConnections, peerState.Conn)
+	c.mu.Unlock()
+
 	defer peerState.Conn.Close()
+
+	peerState.OnPieceComplete = c.markPieceComplete
 
 	err = peerState.RunEventLoop()
 	if peerState.CurrentBuffer != nil {
@@ -62,4 +76,18 @@ func (c *TorrentClient) startWorker(peer p2p.Peer) error {
 		}
 	}
 	return err
+}
+
+func (c *TorrentClient) markPieceComplete() {
+	c.mu.Lock()
+	c.completedPieces++
+	isDone := c.completedPieces == c.totalPieces
+	if isDone {
+		fmt.Println("Download finished")
+		close(c.WorkQueue)
+		for _, conn := range c.activeConnections {
+			conn.Close()
+		}
+	}
+	c.mu.Unlock()
 }

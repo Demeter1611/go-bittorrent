@@ -15,13 +15,14 @@ type PieceWork struct {
 }
 
 type PeerState struct {
-	Conn          net.Conn
-	Choked        bool
-	Bitfield      []byte
-	Torrent       *torrentfile.TorrentFile
-	Storage       *storage.TorrentStorage
-	CurrentBuffer *PieceBuffer
-	WorkQueue     chan *PieceWork
+	Conn            net.Conn
+	Choked          bool
+	Bitfield        []byte
+	Torrent         *torrentfile.TorrentFile
+	Storage         *storage.TorrentStorage
+	CurrentBuffer   *PieceBuffer
+	WorkQueue       chan *PieceWork
+	OnPieceComplete func()
 }
 
 func (p *PeerState) RunEventLoop() error {
@@ -59,7 +60,6 @@ func (p *PeerState) HandleMessage(msg *Message) {
 	case 6:
 		fmt.Println("request")
 	case 7:
-		fmt.Println("piece")
 		p.handlePiece(msg)
 	case 8:
 		fmt.Println("cancel")
@@ -135,7 +135,7 @@ func (p *PeerState) handlePiece(msg *Message) {
 				p.WorkQueue <- &PieceWork{Index: index, Length: uint32(len(p.CurrentBuffer.Buffer)), Hash: expectedHash}
 				fmt.Println(err)
 			} else {
-				fmt.Println("Piece succesfully written")
+				p.OnPieceComplete()
 			}
 		}
 
