@@ -43,26 +43,23 @@ func (p *PeerState) HandleMessage(msg *Message) {
 
 	switch int(msg.ID) {
 	case 0:
-		fmt.Println("choke")
 		p.handleChoke()
 	case 1:
-		fmt.Println("unchoke")
 		p.handleUnchoke()
 	case 2:
-		fmt.Println("interested")
+		// fmt.Println("interested")
 	case 3:
-		fmt.Println("not interested")
+		// fmt.Println("not interested")
 	case 4:
-		fmt.Println("have")
+		// fmt.Println("have")
 	case 5:
-		fmt.Println("bitfield")
 		p.handleBitfield(msg)
 	case 6:
-		fmt.Println("request")
+		// fmt.Println("request")
 	case 7:
 		p.handlePiece(msg)
 	case 8:
-		fmt.Println("cancel")
+		// fmt.Println("cancel")
 	}
 }
 
