@@ -70,7 +70,7 @@ func (m model) View() tea.View {
 
 		downloadedStr := formatBytes(m.bytesDownloaded)
 		totalSizeStr := formatBytes(m.totalSize)
-		statsText := fmt.Sprintf("Speed: %.2f MB/s\n%s / %s downloaded\nPeers: %v connected (out of %v)", m.speed, downloadedStr, totalSizeStr, m.activePeers, m.totalPeers)
+		statsText := fmt.Sprintf("Speed: %.2f MB/s\nDownloaded: %s / %s\nPeers: %v connected (out of %v)", m.speed, downloadedStr, totalSizeStr, m.activePeers, m.totalPeers)
 
 		statsBox := statsBoxStyle.Render(statsText)
 
