@@ -42,7 +42,7 @@ func main() {
 			return
 		}
 
-		peers, err := tracker.SendTrackerRequest(tf, peerId, 6881)
+		peers, err := tracker.GetPeers(tf, peerId, 6881)
 		if err != nil {
 			fmt.Println(err)
 			p.Quit()

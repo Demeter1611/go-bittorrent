@@ -74,8 +74,8 @@ func TestParseTorrentFile(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if tf.Announce != "http://tracker.example.com/announce" {
-		t.Errorf("Incorrect announce: %v", tf.Announce)
+	if tf.AnnounceList[0] != "http://tracker.example.com/announce" {
+		t.Errorf("Incorrect announce: %v", tf.AnnounceList[0])
 	}
 
 	if tf.Name != "test.txt" {

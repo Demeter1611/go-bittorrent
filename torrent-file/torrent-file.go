@@ -8,13 +8,13 @@ import (
 )
 
 type TorrentFile struct {
-	Announce    string
-	InfoHash    [20]byte
-	PieceHashes [][20]byte
-	PieceLength int64
-	Length      int64
-	Name        string
-	Files       []File
+	AnnounceList []string
+	InfoHash     [20]byte
+	PieceHashes  [][20]byte
+	PieceLength  int64
+	Length       int64
+	Name         string
+	Files        []File
 }
 
 type File struct {
@@ -46,10 +46,18 @@ func Open(path string) (*TorrentFile, error) {
 }
 
 func parseTorrentFile(dict map[string]any) (*TorrentFile, error) {
-	announce := ""
+	var announceList []string
 
 	if val, ok := dict["announce"].(string); ok {
-		announce = val
+		announceList = append(announceList, val)
+	}
+
+	if val, ok := dict["announce-list"].([][]string); ok {
+		for _, tier := range val {
+			for _, tracker := range tier {
+				announceList = append(announceList, tracker)
+			}
+		}
 	}
 
 	infoDict, ok := dict["info"].(map[string]any)
@@ -83,11 +91,11 @@ func parseTorrentFile(dict map[string]any) (*TorrentFile, error) {
 	}
 
 	torrentFile := &TorrentFile{
-		Announce:    announce,
-		InfoHash:    infoHash,
-		PieceHashes: pieceHashes,
-		PieceLength: pieceLength,
-		Name:        name,
+		AnnounceList: announceList,
+		InfoHash:     infoHash,
+		PieceHashes:  pieceHashes,
+		PieceLength:  pieceLength,
+		Name:         name,
 	}
 
 	if length, ok := infoDict["length"].(int64); ok {

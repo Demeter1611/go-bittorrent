@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 func GeneratePeerId() ([20]byte, error) {
@@ -23,8 +24,8 @@ func GeneratePeerId() ([20]byte, error) {
 	return peerId, nil
 }
 
-func buildTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, port uint16) (string, error) {
-	base, err := url.Parse(torrentFile.Announce)
+func buildTrackerRequest(torrentFile *torrentfile.TorrentFile, announce string, peerId [20]byte, port uint16) (string, error) {
+	base, err := url.Parse(announce)
 	if err != nil {
 		return "", err
 	}
@@ -43,8 +44,28 @@ func buildTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, 
 	return base.String(), nil
 }
 
-func SendTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, port uint16) ([]p2p.Peer, error) {
-	trackerUrl, err := buildTrackerRequest(torrentFile, peerId, port)
+func GetPeers(torrentFile *torrentfile.TorrentFile, peerId [20]byte, port uint16) ([]p2p.Peer, error) {
+	for _, announce := range torrentFile.AnnounceList {
+		peers, err := sendTrackerRequest(torrentFile, announce, peerId, port)
+		if err == nil {
+			return peers, nil
+		}
+	}
+	return nil, fmt.Errorf("no trackers could be reached")
+}
+
+func sendTrackerRequest(torrentFile *torrentfile.TorrentFile, announce string, peerId [20]byte, port uint16) ([]p2p.Peer, error) {
+	if strings.HasPrefix(announce, "http") {
+		return sendHTTPTrackerRequest(torrentFile, announce, peerId, port)
+	} else if strings.HasPrefix(announce, "udp") {
+		return nil, fmt.Errorf("UDP protocol not implemented yet")
+	}
+
+	return nil, fmt.Errorf("unknown protocol: %s", announce)
+}
+
+func sendHTTPTrackerRequest(torrentFile *torrentfile.TorrentFile, announce string, peerId [20]byte, port uint16) ([]p2p.Peer, error) {
+	trackerUrl, err := buildTrackerRequest(torrentFile, announce, peerId, port)
 	if err != nil {
 		return nil, err
 	}
