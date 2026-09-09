@@ -46,26 +46,22 @@ func buildTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, 
 func SendTrackerRequest(torrentFile *torrentfile.TorrentFile, peerId [20]byte, port uint16) ([]p2p.Peer, error) {
 	trackerUrl, err := buildTrackerRequest(torrentFile, peerId, port)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	resp, err := http.Get(trackerUrl)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println(resp.StatusCode)
 		return nil, fmt.Errorf("tracker returned status %d", resp.StatusCode)
 	}
 
 	decoded, err := bencode.Decode(resp.Body)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 

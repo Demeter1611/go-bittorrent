@@ -22,7 +22,7 @@ type PeerState struct {
 	Storage         *storage.TorrentStorage
 	CurrentBuffer   *PieceBuffer
 	WorkQueue       chan *PieceWork
-	OnPieceComplete func()
+	OnPieceComplete func(pieceLength uint32)
 }
 
 func (p *PeerState) RunEventLoop() error {
@@ -117,9 +117,10 @@ func (p *PeerState) handlePiece(msg *Message) {
 
 	if p.CurrentBuffer.IsDone() {
 		expectedHash := p.Torrent.PieceHashes[index]
+		pieceLength := uint32(len(p.CurrentBuffer.Buffer))
 
 		if !p.CurrentBuffer.Verify(expectedHash) {
-			p.WorkQueue <- &PieceWork{Index: index, Length: uint32(len(p.CurrentBuffer.Buffer)), Hash: expectedHash}
+			p.WorkQueue <- &PieceWork{Index: index, Length: pieceLength, Hash: expectedHash}
 			p.CurrentBuffer = nil
 			fmt.Println("corrupted data")
 			return
@@ -129,10 +130,10 @@ func (p *PeerState) handlePiece(msg *Message) {
 			err := p.Storage.WriteGlobal(p.CurrentBuffer.Buffer, globalOffset)
 
 			if err != nil {
-				p.WorkQueue <- &PieceWork{Index: index, Length: uint32(len(p.CurrentBuffer.Buffer)), Hash: expectedHash}
+				p.WorkQueue <- &PieceWork{Index: index, Length: pieceLength, Hash: expectedHash}
 				fmt.Println(err)
 			} else {
-				p.OnPieceComplete()
+				p.OnPieceComplete(pieceLength)
 			}
 		}
 

@@ -1,12 +1,15 @@
 package client
 
 import (
-	"fmt"
 	"go-bittorrent/p2p"
 	"go-bittorrent/storage"
 	torrentfile "go-bittorrent/torrent-file"
+	"go-bittorrent/tui"
 	"net"
 	"sync"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 type TorrentClient struct {
@@ -16,21 +19,25 @@ type TorrentClient struct {
 	Peers             []p2p.Peer
 	WorkQueue         chan *p2p.PieceWork
 	activeConnections []net.Conn
+	bytesDownloaded   uint64
 	completedPieces   uint32
 	totalPieces       uint32
 	mu                sync.Mutex
 	wg                sync.WaitGroup
+
+	UI *tea.Program
 }
 
 func (c *TorrentClient) Download() {
 	c.initWorkQueue()
+
+	go c.startSpeedMonitor()
 
 	for _, peer := range c.Peers {
 		c.wg.Add(1)
 		go func(p p2p.Peer) {
 			defer c.wg.Done()
 			if err := c.startWorker(p); err != nil {
-				fmt.Println(err)
 			}
 		}(peer)
 	}
@@ -78,32 +85,52 @@ func (c *TorrentClient) startWorker(peer p2p.Peer) error {
 	return err
 }
 
-func (c *TorrentClient) markPieceComplete() {
+func (c *TorrentClient) markPieceComplete(pieceLength uint32) {
 	c.mu.Lock()
+
 	c.completedPieces++
+	c.bytesDownloaded += uint64(pieceLength)
+
 	isDone := c.completedPieces == c.totalPieces
 	if isDone {
-		fmt.Println("Download finished")
+		c.UI.Send(tui.DownloadCompleteMsg{})
 		close(c.WorkQueue)
 		for _, conn := range c.activeConnections {
 			conn.Close()
 		}
 	}
 	c.mu.Unlock()
-	c.computeProgress()
 }
 
-func (c *TorrentClient) computeProgress() {
-	c.mu.Lock()
-	completed := c.completedPieces
-	total := c.totalPieces
-	c.mu.Unlock()
+func (c *TorrentClient) startSpeedMonitor() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
-	if total == 0 {
-		return
+	var lastBytes uint64 = 0
+
+	for {
+		<-ticker.C
+
+		c.mu.Lock()
+		currentBytes := c.bytesDownloaded
+		completed := c.completedPieces
+		total := c.totalPieces
+		c.mu.Unlock()
+
+		bytesInLastSecond := currentBytes - lastBytes
+		lastBytes = currentBytes
+		speedMBps := float64(bytesInLastSecond) / 1048576.0
+
+		if total > 0 {
+			progress := (float32(completed) / float32(total)) * 100.0
+
+			c.UI.Send(tui.StatsUpdateMsg{
+				Progress:        progress,
+				Speed:           speedMBps,
+				BytesDownloaded: c.bytesDownloaded,
+				TotalPeers:      len(c.Peers),
+				ActivePeers:     len(c.activeConnections),
+			})
+		}
 	}
-
-	progress := (float32(completed) / float32(total)) * 100.0
-
-	fmt.Printf("\rProgress: %.2f%% (%d / %d piese)", progress, completed, total)
 }
