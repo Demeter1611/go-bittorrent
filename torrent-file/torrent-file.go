@@ -61,7 +61,16 @@ func parseTorrentFile(dict map[string]any) (*TorrentFile, error) {
 	}
 
 	if len(announceList) == 0 {
-		announceList = append(announceList, "udp://tracker.opentrackr.org:1337/announce")
+		var defaultPublicTrackers = []string{
+			"udp://tracker.opentrackr.org:1337/announce",
+			"udp://9.rarbg.com:2810/announce",
+			"udp://tracker.openbittorrent.com:6969/announce",
+			"http://tracker.openbittorrent.com:80/announce",
+			"udp://exodus.desync.com:6969/announce",
+			"udp://tracker.torrent.eu.org:451/announce",
+			"udp://tracker.moeking.me:6969/announce",
+		}
+		announceList = append(announceList, defaultPublicTrackers...)
 	}
 
 	infoDict, ok := dict["info"].(map[string]any)
