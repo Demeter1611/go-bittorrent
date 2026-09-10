@@ -60,6 +60,10 @@ func parseTorrentFile(dict map[string]any) (*TorrentFile, error) {
 		}
 	}
 
+	if len(announceList) == 0 {
+		announceList = append(announceList, "udp://tracker.opentrackr.org:1337/announce")
+	}
+
 	infoDict, ok := dict["info"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid 'info' dictionary")
